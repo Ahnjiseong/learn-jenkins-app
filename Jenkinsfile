@@ -1,35 +1,29 @@
 pipeline {
-    agent any
+    agent {
+        docker {
+            image 'node:18-alpine'
+            reuseNode true
+        }
+    }
 
     stages {
         stage('Build') {
-
-            agent {
-                docker {
-                    image 'node:18-alpine'
-                    reuseNode true
-                }
-            }
-
             steps {
                 sh '''
-                    ls -la
-                    node --version
-                    npm --version
                     npm ci
                     npm run build
-                    ls -la
                 '''
             }
         }
 
         stage('Test') {
             steps {
-                echo 'Test stage'
                 sh '''
                     ls -l build/index.html
-                    npm test
+                    CI=true npm test -- --watchAll=false
                 '''
+
+                junit 'test-results/junit.xml'
             }
         }
     }
