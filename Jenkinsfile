@@ -19,12 +19,12 @@ pipeline {
         stage('Test') {
             steps {
                 sh '''
-                    ls -l build/index.html
-                    CI=true npm test -- --watchAll=false
+                    test -f build/index.html
+                    npm test
                 '''
-
-                junit 'test-results/junit.xml'
             }
         }
     }
+
+
 }
