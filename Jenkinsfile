@@ -22,10 +22,12 @@ pipeline {
 
         stage('Test') {
             steps {
-                echo 'Test stage'
                 sh '''
                     test -f build/index.html
-                    npm test
+
+                    CI=true npm test -- --watchAll=false
+
+                    ls -la test-results
                 '''
             }
         }
