@@ -127,13 +127,28 @@ pipeline {
 
             steps {
                 sh '''
-                    echo "=============================="
-                    echo "Prod E2E URL 확인"
+                    echo "================================="
+                    echo "1. 환경변수 확인"
                     echo "CI_ENVIRONMENT_URL=$CI_ENVIRONMENT_URL"
-                    echo "=============================="
 
-                    curl -I "$CI_ENVIRONMENT_URL"
+                    echo "================================="
+                    echo "2. DNS 확인"
+                    getent hosts verdant-macaron-8d142a.netlify.app || true
 
+                    echo "================================="
+                    echo "3. HTTP 응답 확인"
+                    curl -L -v "$CI_ENVIRONMENT_URL" -o /tmp/netlify.html
+
+                    echo "================================="
+                    echo "4. 실제 받은 HTML title 확인"
+                    grep -i "<title" /tmp/netlify.html || true
+
+                    echo "================================="
+                    echo "5. HTML 앞부분"
+                    head -30 /tmp/netlify.html
+
+                    echo "================================="
+                    echo "6. Playwright 실행"
                     npx playwright test --reporter=html
                 '''
             }
