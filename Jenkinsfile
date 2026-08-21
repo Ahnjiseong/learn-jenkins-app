@@ -126,7 +126,16 @@ pipeline {
             }
 
             steps {
-                sh 'npx playwright test --reporter=html'
+                sh '''
+                    echo "=============================="
+                    echo "Prod E2E URL 확인"
+                    echo "CI_ENVIRONMENT_URL=$CI_ENVIRONMENT_URL"
+                    echo "=============================="
+
+                    curl -I "$CI_ENVIRONMENT_URL"
+
+                    npx playwright test --reporter=html
+                '''
             }
         }
     }
