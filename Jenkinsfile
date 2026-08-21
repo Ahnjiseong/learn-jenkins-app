@@ -1,10 +1,6 @@
 pipeline {
-    agent {
-        docker {
-            image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
-            reuseNode true
-        }
-    }
+    // 전역 에이전트를 사용하지 않음으로써 컨테이너 충돌 방지
+    agent none
 
     environment {
         NETLIFY_SITE_ID = 'e48dccbf-de88-44c2-9340-b05647ea087a'
@@ -12,35 +8,62 @@ pipeline {
     }
 
     stages {
+        stage('AWS') {
+            agent {
+                docker {
+                    image 'amazon/aws-cli'
+                    // aws-cli 이미지는 기본적으로 실행 후 바로 종료되므로 엔트리포인트 무력화
+                    args '--entrypoint=""'
+                }
+            }
+
+            steps {
+                sh 'aws --version'
+            }
+        }
+
         stage('Build') {
+            agent {
+                docker {
+                    image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                }
+            }
+
             steps {
                 sh '''
-                    echo '트리거 테스트 중...'
-                    ls -la
+                    echo '빌드 시작..'
                     node --version
                     npm --version
                     npm ci
                     npm run build
-                    ls -la
                 '''
             }
         }
 
         stage('Test') {
+            agent {
+                docker {
+                    image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                }
+            }
+
             steps {
                 sh '''
-                    test -f build/index.html
-
-                    CI=true npm test -- --watchAll=false
-
-                    ls -la test-results
+                    npm test
                 '''
             }
         }
 
         stage('E2E') {
+            agent {
+                docker {
+                    image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                }
+            }
+
             steps {
                 sh '''
+                    # serve를 로컬에 설치하여 실행
                     npm install serve
                     node_modules/.bin/serve -s build & sleep 10
                     npx playwright test --reporter=html
@@ -49,46 +72,59 @@ pipeline {
         }
 
         stage('Deploy staging') {
+            agent {
+                docker {
+                    image 'node:18-bullseye'
+                }
+            }
+
             steps {
                 sh '''
                     npm install netlify-cli@20.1.1
-                    node_modules/.bin/netlify --version
-                    echo "프로젝트 스테이징 배포중.. 사이트 아이디: $NETLIFY_SITE_ID"
-                    node_modules/.bin/netlify status
                     node_modules/.bin/netlify deploy --dir=build
                 '''
             }
         }
 
+        stage('Approval') {
+            agent none
+
+            steps {
+                timeout(time: 15, unit: 'MINUTES') {
+                    input message: '운영환경에 배포할까요?', ok: '네 배포합니다'
+                }
+            }
+        }
+
         stage('Deploy prod') {
+            agent {
+                docker {
+                    image 'node:18-bullseye'
+                }
+            }
+
             steps {
                 sh '''
                     npm install netlify-cli@20.1.1
-                    node_modules/.bin/netlify --version
-                    echo "프로젝트 배포중.. 사이트 아이디: $NETLIFY_SITE_ID"
-                    node_modules/.bin/netlify status
                     node_modules/.bin/netlify deploy --dir=build --prod
                 '''
             }
         }
 
         stage('Prod E2E') {
+            agent {
+                docker {
+                    image 'mcr.microsoft.com/playwright:v1.39.0-jammy'
+                }
+            }
 
             environment {
-                CI_ENVIRONMENT_URL = 'https://verdant-macaron-8d142a.netlify.app'
+                CI_ENVIRONMENT_URL = 'https://legendary-mousse-2c5c10.netlify.app'
             }
 
             steps {
-                sh '''
-                    npx playwright test --reporter=html
-                '''
+                sh 'npx playwright test --reporter=html'
             }
-        }
-    }
-
-    post {
-        always {
-            junit 'jest-results/junit.xml'
         }
     }
 }
