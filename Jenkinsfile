@@ -18,6 +18,9 @@ pipeline {
             }
 
             steps {
+                sh '''
+                    aws --version
+                '''
                 sh 'aws --version'
             }
         }
@@ -119,7 +122,7 @@ pipeline {
             }
 
             environment {
-                CI_ENVIRONMENT_URL = 'https://legendary-mousse-2c5c10.netlify.app'
+                CI_ENVIRONMENT_URL = 'https://verdant-macaron-8d142a.netlify.app'
             }
 
             steps {
